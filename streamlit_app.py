@@ -270,7 +270,7 @@ def generer_pdf_bytes(
 
 st.set_page_config(page_title="Fasevinkel Generator", layout="wide")
 st.title("⚡ Fasevinkel Testrapport Generator")
-st.subheader("Skabelon til NDB SPI-III (Lagging / Med uret)")
+st.subheader("Fasevinkelmåling (Lagging / Med uret)")
 
 col1, col2 = st.columns([1, 1])
 
