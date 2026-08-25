@@ -268,13 +268,13 @@ col1, col2 = st.columns([1, 1])
 
 with col1:
     st.header("1. Stamdata")
-    station_navn = st.text_input("Stationsnavn", "Energinet NVV150kV")
-    trafo_navn = st.text_input("Transformer ID / Navn", "Transformer 3")
+    station_navn = st.text_input("Stationsnavn", "")
+    trafo_navn = st.text_input("Transformer ID / Navn", "")
     primaer_maaleplacering = st.text_input(
-        "Hvor/navn for primær måling", "Primær side - 150 kV"
+        "Hvor/navn for primær måling", ""
     )
     sekundaer_maaleplacering = st.text_input(
-        "Hvor/navn for sekundær måling", "Sekundær side - 20 kV"
+        "Hvor/navn for sekundær måling", ""
     )
     koblingsgrupper = byg_koblingsgrupper()
     koblingsgruppe = st.selectbox(
