@@ -279,39 +279,48 @@ with col1:
     koblingsgrupper = byg_koblingsgrupper()
     koblingsgruppe = st.selectbox(
         "Valg af Koblingsgruppe",
-        koblingsgrupper,
-        index=koblingsgrupper.index("YNd5"),
+        [""] + koblingsgrupper,
+        index=0,
     )
 
     st.header("2. Måleresultater (Grader °)")
     c_l1, c_l2 = st.columns(2)
     with c_l1:
-        p1 = st.number_input("L1 Primær", value=6.7, step=0.1)
-        p2 = st.number_input("L2 Primær", value=130.9, step=0.1)
-        p3 = st.number_input("L3 Primær", value=250.6, step=0.1)
+        p1 = st.number_input("L1 Primær", value=None, step=0.1)
+        p2 = st.number_input("L2 Primær", value=None, step=0.1)
+        p3 = st.number_input("L3 Primær", value=None, step=0.1)
     with c_l2:
-        s1 = st.number_input("L1 Sekundær", value=148.2, step=0.1)
-        s2 = st.number_input("L2 Sekundær", value=267.7, step=0.1)
-        s3 = st.number_input("L3 Sekundær", value=29.6, step=0.1)
+        s1 = st.number_input("L1 Sekundær", value=None, step=0.1)
+        s2 = st.number_input("L2 Sekundær", value=None, step=0.1)
+        s3 = st.number_input("L3 Sekundær", value=None, step=0.1)
 
-pdf_data, diagram_fig = generer_pdf_bytes(
-    station_navn,
-    trafo_navn,
-    koblingsgruppe,
-    primaer_maaleplacering,
-    sekundaer_maaleplacering,
-    [p1, p2, p3],
-    [s1, s2, s3],
-)
+alle_maalinger = [p1, p2, p3, s1, s2, s3]
+if koblingsgruppe and all(maaling is not None for maaling in alle_maalinger):
+    pdf_data, diagram_fig = generer_pdf_bytes(
+        station_navn,
+        trafo_navn,
+        koblingsgruppe,
+        primaer_maaleplacering,
+        sekundaer_maaleplacering,
+        [p1, p2, p3],
+        [s1, s2, s3],
+    )
+else:
+    pdf_data = None
+    diagram_fig = None
 
 with col2:
     st.header("3. Live Vektordiagram")
-    st.pyplot(diagram_fig)
+    if diagram_fig is not None:
+        st.pyplot(diagram_fig)
+    else:
+        st.info("Udfyld koblingsgruppe og alle måleresultater for at se diagrammet.")
 
     st.header("4. Eksport")
-    st.download_button(
-        label="📥 DOWNLOAD PDF RAPPORT",
-        data=pdf_data,
-        file_name=f"Fasevinkel_Rapport_{station_navn.replace(' ', '_')}.pdf",
-        mime="application/pdf",
-    )
+    if pdf_data is not None:
+        st.download_button(
+            label="📥 DOWNLOAD PDF RAPPORT",
+            data=pdf_data,
+            file_name=f"Fasevinkel_Rapport_{station_navn.replace(' ', '_')}.pdf",
+            mime="application/pdf",
+        )
