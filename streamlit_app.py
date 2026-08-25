@@ -61,6 +61,9 @@ def generer_pdf_bytes(
     sek_vinkler,
 ):
     """Build the phase-shift report and return its PDF bytes and chart."""
+    er_koblingsgruppe_ikke_relevant = (
+        kobling == "ikke relevant (Teoretisk: 0°)"
+    )
     klokketal_match = re.search(r"\d{1,2}", kobling)
     if klokketal_match:
         uretal = int(klokketal_match.group())
@@ -183,14 +186,19 @@ def generer_pdf_bytes(
         alignment=1,
         textColor=colors.white,
     )
+    koblingsgruppe_rapport = (
+        "<b>Transformer Koblingsgruppe:</b> Transformer Koblingsgruppe "
+        "er ikke relevant da der ikke måles på tværs af en transformer<br/>"
+        if er_koblingsgruppe_ikke_relevant
+        else f"<b>Transformer Koblingsgruppe:</b> {kobling} "
+        f"(Teoretisk: {forventet_forskydning}° lagging)<br/>"
+    )
 
     story = [
         Paragraph("FASEVINKEL TESTRAPPORT", title_style),
         Paragraph(
-            f"<b>Måleinstrument:</b> NDB SPI-III<br/>"
-            f"<b>Transformer Koblingsgruppe:</b> {kobling} "
-            f"(Teoretisk: {forventet_forskydning}° lagging)<br/>"
-            f"<b>Station:</b> {station}<br/>"
+            koblingsgruppe_rapport
+            + f"<b>Station:</b> {station}<br/>"
             f"<b>Transformer ID:</b> {trafo_id}<br/>"
             f"<b>Primær måling udført ved:</b> {primaer_maaleplacering}<br/>"
             f"<b>Sekundær måling udført ved:</b> {sekundaer_maaleplacering}",
@@ -279,7 +287,7 @@ with col1:
     koblingsgrupper = byg_koblingsgrupper()
     koblingsgruppe = st.selectbox(
         "Valg af Koblingsgruppe",
-        [""] + koblingsgrupper,
+        ["", "ikke relevant (Teoretisk: 0°)"] + koblingsgrupper,
         index=0,
     )
 
