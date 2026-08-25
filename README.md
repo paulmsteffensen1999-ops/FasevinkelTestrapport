@@ -2,7 +2,7 @@
 
 Streamlit-appen genererer en fasevinkel-testrapport med live vektordiagram og PDF-eksport.
 
-[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://blank-app-template.streamlit.app/)
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://fasevinkel.streamlit.app/)
 
 ### Kør lokalt
 
