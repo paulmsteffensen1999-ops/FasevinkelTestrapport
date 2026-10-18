@@ -12,12 +12,23 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.platypus import (
     Image,
     KeepTogether,
+    PageBreak,
     Paragraph,
     SimpleDocTemplate,
     Spacer,
     Table,
     TableStyle,
 )
+
+MÅLEMETODER = [
+    "Direkte måling på LV (op til 1000V)",
+    "Direkte måling på MV/HV (op til 72 kV)",
+    "Berøringsfri måling på HV (op til 1.200 kV)",
+    "Måling via kapacitive test-porte (Capacitive Test Ports)",
+    "Måling via VDS / VPIS-porte",
+    "Direkte måling på 10-20kV med isoleret testprope (kapacitiv)",
+]
+KAPACITIV_TESTPROBE = MÅLEMETODER[-1]
 
 
 def byg_koblingsgrupper():
@@ -58,7 +69,8 @@ def generer_pdf_bytes(
     kobling,
     primaer_maaleplacering,
     sekundaer_maaleplacering,
-    maale_metode,
+    maale_metode_a,
+    maale_metode_b,
     pri_vinkler,
     sek_vinkler,
     billeder,
@@ -67,6 +79,13 @@ def generer_pdf_bytes(
     er_koblingsgruppe_ikke_relevant = (
         kobling == "ikke relevant (Teoretisk: 0°)"
     )
+    indtastede_pri_vinkler = list(pri_vinkler)
+    indtastede_sek_vinkler = list(sek_vinkler)
+    if maale_metode_a == KAPACITIV_TESTPROBE:
+        pri_vinkler = [(vinkel - 60) % 360 for vinkel in pri_vinkler]
+    if maale_metode_b == KAPACITIV_TESTPROBE:
+        sek_vinkler = [(vinkel - 60) % 360 for vinkel in sek_vinkler]
+
     klokketal_match = re.search(r"\d{1,2}", kobling)
     if klokketal_match:
         uretal = int(klokketal_match.group())
@@ -197,9 +216,6 @@ def generer_pdf_bytes(
         f"(Teoretisk: {forventet_forskydning}° lagging)<br/>"
     )
 
-    metode_rapport = (
-        escape(maale_metode.strip()).replace("\n", "<br/>") or "Ikke angivet"
-    )
     story = [
         Paragraph("FASEVINKEL TESTRAPPORT", title_style),
         Paragraph("Stamdata og målemetode", styles["Heading2"]),
@@ -210,34 +226,57 @@ def generer_pdf_bytes(
             f"<b>Primær måling udført ved:</b> {escape(primaer_maaleplacering)}<br/>"
             f"<b>Sekundær måling udført ved:</b> "
             f"{escape(sekundaer_maaleplacering)}<br/>"
-            f"<b>Målemetode:</b><br/>{metode_rapport}",
+            f"<b>Målemetode for Værdi A:</b> {escape(maale_metode_a)}<br/>"
+            f"<b>Målemetode for Værdi B:</b> {escape(maale_metode_b)}",
             meta_style,
         ),
         Spacer(1, 15),
         Paragraph("Måleresultater", styles["Heading2"]),
     ]
 
+    pri_vinkel_visninger = [
+        f"{indtastet}° → {korrigeret}°"
+        if maale_metode_a == KAPACITIV_TESTPROBE
+        else f"{korrigeret}°"
+        for indtastet, korrigeret in zip(indtastede_pri_vinkler, pri_vinkler)
+    ]
+    sek_vinkel_visninger = [
+        f"{indtastet}° → {korrigeret}°"
+        if maale_metode_b == KAPACITIV_TESTPROBE
+        else f"{korrigeret}°"
+        for indtastet, korrigeret in zip(indtastede_sek_vinkler, sek_vinkler)
+    ]
     data = [
         [
             Paragraph("Fase", cell_hdr),
-            Paragraph("Primær Vinkel", cell_hdr),
-            Paragraph("Sekundær Vinkel", cell_hdr),
+            Paragraph(
+                "Primær Vinkel (indtastet → korrigeret)"
+                if maale_metode_a == KAPACITIV_TESTPROBE
+                else "Primær Vinkel",
+                cell_hdr,
+            ),
+            Paragraph(
+                "Sekundær Vinkel (indtastet → korrigeret)"
+                if maale_metode_b == KAPACITIV_TESTPROBE
+                else "Sekundær Vinkel",
+                cell_hdr,
+            ),
             Paragraph("Målt Forskydning", cell_hdr),
             Paragraph("Status", cell_hdr),
         ],
         *[
             [
                 Paragraph(f"<b>{navn} ({farve_navn})</b>", cell_style),
-                Paragraph(f"{primaer}°", cell_style),
-                Paragraph(f"{sekundaer}°", cell_style),
+                Paragraph(pri_visning, cell_style),
+                Paragraph(sek_visning, cell_style),
                 Paragraph(f"{forskydning}°", cell_style),
                 Paragraph(f"<b>{fase_status}</b>", cell_style),
             ]
-            for navn, farve_navn, primaer, sekundaer, forskydning, fase_status in zip(
+            for navn, farve_navn, pri_visning, sek_visning, forskydning, fase_status in zip(
                 fase_navne,
                 ["Blå", "Gul", "Rød"],
-                pri_vinkler,
-                sek_vinkler,
+                pri_vinkel_visninger,
+                sek_vinkel_visninger,
                 forskydninger,
                 status,
             )
@@ -270,15 +309,60 @@ def generer_pdf_bytes(
     )
 
     if billeder:
-        story.append(Paragraph("Billeddokumentation", styles["Heading2"]))
-        for filnavn, billeddata in billeder:
-            story.extend(
+        story.extend(
+            [
+                PageBreak(),
+                Paragraph("Billeder til måleresultater", title_style),
+            ]
+        )
+        for fase in range(1, 4):
+            billeder_a = billeder.get(f"L{fase} A side", [])
+            billeder_b = billeder.get(f"L{fase} B side", [])
+            antal_raekker = max(len(billeder_a), len(billeder_b))
+            if not antal_raekker:
+                continue
+
+            billeddata = [
                 [
-                    Paragraph(escape(filnavn), meta_style),
-                    Image(io.BytesIO(billeddata), width=450, height=280, kind="bound"),
-                    Spacer(1, 12),
+                    Paragraph(
+                        f"<b>L{fase} {escape(primaer_maaleplacering)}</b>",
+                        cell_style,
+                    ),
+                    Paragraph(
+                        f"<b>L{fase} {escape(sekundaer_maaleplacering)}</b>",
+                        cell_style,
+                    ),
                 ]
+            ]
+            for indeks in range(antal_raekker):
+                raekke = []
+                for fasebilleder in (billeder_a, billeder_b):
+                    if indeks < len(fasebilleder):
+                        raekke.append(
+                            Image(
+                                io.BytesIO(fasebilleder[indeks].getvalue()),
+                                width=245,
+                                height=175,
+                                kind="proportional",
+                            )
+                        )
+                    else:
+                        raekke.append("")
+                billeddata.append(raekke)
+
+            billedtabel = Table(billeddata, colWidths=[266, 266], repeatRows=1)
+            billedtabel.setStyle(
+                TableStyle(
+                    [
+                        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E0")),
+                        ("TOPPADDING", (0, 0), (-1, -1), 6),
+                        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+                    ]
+                )
             )
+            story.extend([billedtabel, Spacer(1, 12)])
 
     story.extend(
         [
@@ -320,17 +404,19 @@ with col1:
     sekundaer_maaleplacering = st.text_input(
         "Hvor/navn for sekundær måling", ""
     )
-    maale_metode = st.text_area("Målemetode", "", height=100)
-    uploadede_billeder = st.file_uploader(
-        "Billeddokumentation (valgfrit)",
-        type=["jpg", "jpeg", "png"],
-        accept_multiple_files=True,
-    )
+    metode_a, metode_b = st.columns(2)
+    with metode_a:
+        maale_metode_a = st.selectbox("Målemetode for Værdi A", MÅLEMETODER)
+    with metode_b:
+        maale_metode_b = st.selectbox("Målemetode for Værdi B", MÅLEMETODER)
     koblingsgrupper = byg_koblingsgrupper()
     koblingsgruppe = st.selectbox(
         "Valg af Koblingsgruppe",
         ["", "ikke relevant (Teoretisk: 0°)"] + koblingsgrupper,
         index=0,
+    )
+    st.caption(
+        "Den kapacitive testprobe korrigeres automatisk med -60° i rapporten."
     )
 
     st.header("2. Måleresultater (Grader °)")
@@ -344,6 +430,29 @@ with col1:
         s2 = st.number_input("L2 Sekundær", value=None, step=0.1)
         s3 = st.number_input("L3 Sekundær", value=None, step=0.1)
 
+    st.markdown("### Billeder til måleresultater (valgfrit)")
+    maale_punkt_billeder = {}
+    for fase in range(1, 4):
+        fase_a, fase_b = st.columns(2)
+        with fase_a:
+            billeder_a = st.file_uploader(
+                f"Billeder: L{fase} {primaer_maaleplacering or 'Værdi A'}",
+                type=["jpg", "jpeg", "png"],
+                accept_multiple_files=True,
+                key=f"billeder_l{fase}_a",
+            )
+            if billeder_a:
+                maale_punkt_billeder[f"L{fase} A side"] = billeder_a
+        with fase_b:
+            billeder_b = st.file_uploader(
+                f"Billeder: L{fase} {sekundaer_maaleplacering or 'Værdi B'}",
+                type=["jpg", "jpeg", "png"],
+                accept_multiple_files=True,
+                key=f"billeder_l{fase}_b",
+            )
+            if billeder_b:
+                maale_punkt_billeder[f"L{fase} B side"] = billeder_b
+
 alle_maalinger = [p1, p2, p3, s1, s2, s3]
 if koblingsgruppe and all(maaling is not None for maaling in alle_maalinger):
     pdf_data, diagram_fig = generer_pdf_bytes(
@@ -352,10 +461,11 @@ if koblingsgruppe and all(maaling is not None for maaling in alle_maalinger):
         koblingsgruppe,
         primaer_maaleplacering,
         sekundaer_maaleplacering,
-        maale_metode,
+        maale_metode_a,
+        maale_metode_b,
         [p1, p2, p3],
         [s1, s2, s3],
-        [(billede.name, billede.getvalue()) for billede in uploadede_billeder],
+        maale_punkt_billeder,
     )
 else:
     pdf_data = None
