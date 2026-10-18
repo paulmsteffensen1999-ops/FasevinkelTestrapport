@@ -271,11 +271,18 @@ def generer_pdf_bytes(
         else f"{korrigeret}°"
         for indtastet, korrigeret in zip(indtastede_sek_vinkler, sek_vinkler)
     ]
+    pri_tabeloverskrift = primaer_maaleplacering.strip() or "Primær Vinkel"
+    sek_tabeloverskrift = sekundaer_maaleplacering.strip() or "Sekundær Vinkel"
+    if maale_metode_a == KAPACITIV_TESTPROBE:
+        pri_tabeloverskrift += " (rå → korrigeret)"
+    if maale_metode_b == KAPACITIV_TESTPROBE:
+        sek_tabeloverskrift += " (rå → korrigeret)"
+
     data = [
         [
             Paragraph("Fase", cell_hdr),
-            Paragraph("Primær Vinkel", cell_hdr),
-            Paragraph("Sekundær Vinkel", cell_hdr),
+            Paragraph(escape(pri_tabeloverskrift), cell_hdr),
+            Paragraph(escape(sek_tabeloverskrift), cell_hdr),
             Paragraph("Målt Forskydning", cell_hdr),
             Paragraph("Status", cell_hdr),
         ],
