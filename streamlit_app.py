@@ -1,6 +1,7 @@
 import io
 import math
 import re
+from xml.sax.saxutils import escape
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -57,8 +58,10 @@ def generer_pdf_bytes(
     kobling,
     primaer_maaleplacering,
     sekundaer_maaleplacering,
+    maale_metode,
     pri_vinkler,
     sek_vinkler,
+    billeder,
 ):
     """Build the phase-shift report and return its PDF bytes and chart."""
     er_koblingsgruppe_ikke_relevant = (
@@ -194,17 +197,24 @@ def generer_pdf_bytes(
         f"(Teoretisk: {forventet_forskydning}° lagging)<br/>"
     )
 
+    metode_rapport = (
+        escape(maale_metode.strip()).replace("\n", "<br/>") or "Ikke angivet"
+    )
     story = [
         Paragraph("FASEVINKEL TESTRAPPORT", title_style),
+        Paragraph("Stamdata og målemetode", styles["Heading2"]),
         Paragraph(
             koblingsgruppe_rapport
-            + f"<b>Station:</b> {station}<br/>"
-            f"<b>Transformer ID:</b> {trafo_id}<br/>"
-            f"<b>Primær måling udført ved:</b> {primaer_maaleplacering}<br/>"
-            f"<b>Sekundær måling udført ved:</b> {sekundaer_maaleplacering}",
+            + f"<b>Station:</b> {escape(station)}<br/>"
+            f"<b>Transformer ID:</b> {escape(trafo_id)}<br/>"
+            f"<b>Primær måling udført ved:</b> {escape(primaer_maaleplacering)}<br/>"
+            f"<b>Sekundær måling udført ved:</b> "
+            f"{escape(sekundaer_maaleplacering)}<br/>"
+            f"<b>Målemetode:</b><br/>{metode_rapport}",
             meta_style,
         ),
         Spacer(1, 15),
+        Paragraph("Måleresultater", styles["Heading2"]),
     ]
 
     data = [
@@ -249,7 +259,33 @@ def generer_pdf_bytes(
             ]
         )
     )
-    story.extend([tabel, Spacer(1, 20), KeepTogether([Image(img_buf, width=310, height=310)]), Spacer(1, 25)])
+    story.extend(
+        [
+            tabel,
+            Spacer(1, 20),
+            Paragraph("Vektordiagram", styles["Heading2"]),
+            KeepTogether([Image(img_buf, width=310, height=310)]),
+            Spacer(1, 15),
+        ]
+    )
+
+    if billeder:
+        story.append(Paragraph("Billeddokumentation", styles["Heading2"]))
+        for filnavn, billeddata in billeder:
+            story.extend(
+                [
+                    Paragraph(escape(filnavn), meta_style),
+                    Image(io.BytesIO(billeddata), width=450, height=280, kind="bound"),
+                    Spacer(1, 12),
+                ]
+            )
+
+    story.extend(
+        [
+            Spacer(1, 10),
+            Paragraph("Udførelse og godkendelse", styles["Heading2"]),
+        ]
+    )
 
     sig_data = [
         [
@@ -284,6 +320,12 @@ with col1:
     sekundaer_maaleplacering = st.text_input(
         "Hvor/navn for sekundær måling", ""
     )
+    maale_metode = st.text_area("Målemetode", "", height=100)
+    uploadede_billeder = st.file_uploader(
+        "Billeddokumentation (valgfrit)",
+        type=["jpg", "jpeg", "png"],
+        accept_multiple_files=True,
+    )
     koblingsgrupper = byg_koblingsgrupper()
     koblingsgruppe = st.selectbox(
         "Valg af Koblingsgruppe",
@@ -310,8 +352,10 @@ if koblingsgruppe and all(maaling is not None for maaling in alle_maalinger):
         koblingsgruppe,
         primaer_maaleplacering,
         sekundaer_maaleplacering,
+        maale_metode,
         [p1, p2, p3],
         [s1, s2, s3],
+        [(billede.name, billede.getvalue()) for billede in uploadede_billeder],
     )
 else:
     pdf_data = None
