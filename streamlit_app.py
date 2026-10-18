@@ -179,23 +179,31 @@ def generer_pdf_bytes(
         pagesize=letter,
         leftMargin=40,
         rightMargin=40,
-        topMargin=40,
-        bottomMargin=40,
+        topMargin=30,
+        bottomMargin=30,
     )
 
     styles = getSampleStyleSheet()
     title_style = ParagraphStyle(
         "T1",
         parent=styles["Heading1"],
-        fontSize=22,
+        fontSize=20,
+        leading=22,
         textColor=colors.HexColor("#1A365D"),
-        spaceAfter=15,
+        spaceAfter=8,
     )
     meta_style = ParagraphStyle(
         "M1",
         parent=styles["Normal"],
-        fontSize=11,
-        leading=16,
+        fontSize=10,
+        leading=13,
+        textColor=colors.HexColor("#4A5568"),
+    )
+    forklaring_style = ParagraphStyle(
+        "MethodExplanation",
+        parent=styles["Normal"],
+        fontSize=8,
+        leading=10,
         textColor=colors.HexColor("#4A5568"),
     )
     cell_style = ParagraphStyle(
@@ -231,8 +239,24 @@ def generer_pdf_bytes(
             meta_style,
         ),
         Spacer(1, 15),
-        Paragraph("Måleresultater", styles["Heading2"]),
     ]
+    if KAPACITIV_TESTPROBE in (maale_metode_a, maale_metode_b):
+        story.extend(
+            [
+                Paragraph(
+                    "<b>Forklaring af kapacitiv testprobe (+60°):</b><br/>"
+                    "Testspidsen fungerer som en højspændingskondensator. "
+                    "Sammen med måleinstrumentets indgangsimpedans danner den "
+                    "et kapacitivt kredsløb, som får målesignalet (strømmen) "
+                    "til at ligge elektrisk 60° foran den rå spændingsbølge. "
+                    "Derfor korrigeres den indtastede vinkel med -60° på den "
+                    "side, hvor denne målemetode er valgt.",
+                    forklaring_style,
+                ),
+                Spacer(1, 8),
+            ]
+        )
+    story.append(Paragraph("Måleresultater", styles["Heading2"]))
 
     pri_vinkel_visninger = [
         f"{indtastet}° → {korrigeret}°"
@@ -250,13 +274,13 @@ def generer_pdf_bytes(
         [
             Paragraph("Fase", cell_hdr),
             Paragraph(
-                "Primær Vinkel (indtastet → korrigeret)"
+                "Primær vinkel<br/>(rå → korrigeret)"
                 if maale_metode_a == KAPACITIV_TESTPROBE
                 else "Primær Vinkel",
                 cell_hdr,
             ),
             Paragraph(
-                "Sekundær Vinkel (indtastet → korrigeret)"
+                "Sekundær vinkel<br/>(rå → korrigeret)"
                 if maale_metode_b == KAPACITIV_TESTPROBE
                 else "Sekundær Vinkel",
                 cell_hdr,
@@ -302,17 +326,52 @@ def generer_pdf_bytes(
         [
             tabel,
             Spacer(1, 20),
-            Paragraph("Vektordiagram", styles["Heading2"]),
-            KeepTogether([Image(img_buf, width=310, height=310)]),
-            Spacer(1, 15),
+            KeepTogether(
+                [
+                    Paragraph("Vektordiagram", styles["Heading2"]),
+                    Image(img_buf, width=190, height=190),
+                ]
+            ),
+            Spacer(1, 8),
+            KeepTogether(
+                [
+                    Paragraph("Udførelse og godkendelse", styles["Heading2"]),
+                    Table(
+                        [
+                            [
+                                Paragraph(
+                                    "<b>Udført af:</b> _______________________",
+                                    meta_style,
+                                ),
+                                Paragraph("<b>Dato:</b> ____/____ - 20__", meta_style),
+                            ],
+                            [
+                                Paragraph(
+                                    "<b>Godkendt af:</b> _______________________",
+                                    meta_style,
+                                ),
+                                Paragraph("<b>Signatur:</b> _______________________", meta_style),
+                            ],
+                        ],
+                        colWidths=[260, 260],
+                    ),
+                ]
+            ),
         ]
     )
+    story = [KeepTogether(story)]
 
     if billeder:
         story.extend(
             [
                 PageBreak(),
-                Paragraph("Billeder til måleresultater", title_style),
+                Paragraph("Billeddokumentation", title_style),
+                Paragraph(
+                    f"<b>Station:</b> {escape(station)}<br/>"
+                    f"<b>Transformer ID:</b> {escape(trafo_id)}",
+                    meta_style,
+                ),
+                Spacer(1, 10),
             ]
         )
         for fase in range(1, 4):
@@ -364,25 +423,6 @@ def generer_pdf_bytes(
             )
             story.extend([billedtabel, Spacer(1, 12)])
 
-    story.extend(
-        [
-            Spacer(1, 10),
-            Paragraph("Udførelse og godkendelse", styles["Heading2"]),
-        ]
-    )
-
-    sig_data = [
-        [
-            Paragraph("<b>Udført af:</b> _______________________", meta_style),
-            Paragraph("<b>Dato:</b> ____/____ - 20__", meta_style),
-        ],
-        [
-            Paragraph("<b>Godkendt af:</b> _______________________", meta_style),
-            Paragraph("<b>Signatur:</b> _______________________", meta_style),
-        ],
-    ]
-    story.append(Table(sig_data, colWidths=[260, 260]))
-
     doc.build(story)
     pdf_buf.seek(0)
     return pdf_buf.getvalue(), fig
@@ -409,16 +449,17 @@ with col1:
         maale_metode_a = st.selectbox("Målemetode for Værdi A", MÅLEMETODER)
     with metode_b:
         maale_metode_b = st.selectbox("Målemetode for Værdi B", MÅLEMETODER)
+    if KAPACITIV_TESTPROBE in (maale_metode_a, maale_metode_b):
+        st.info(
+            "Den kapacitive testprobe får målesignalet til at ligge +60° foran "
+            "spændingsbølgen. Vinklen korrigeres derfor med -60° på den valgte side."
+        )
     koblingsgrupper = byg_koblingsgrupper()
     koblingsgruppe = st.selectbox(
         "Valg af Koblingsgruppe",
         ["", "ikke relevant (Teoretisk: 0°)"] + koblingsgrupper,
         index=0,
     )
-    st.caption(
-        "Den kapacitive testprobe korrigeres automatisk med -60° i rapporten."
-    )
-
     st.header("2. Måleresultater (Grader °)")
     c_l1, c_l2 = st.columns(2)
     with c_l1:
