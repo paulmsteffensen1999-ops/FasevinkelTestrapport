@@ -274,18 +274,8 @@ def generer_pdf_bytes(
     data = [
         [
             Paragraph("Fase", cell_hdr),
-            Paragraph(
-                "Primær vinkel<br/>(rå → korrigeret)"
-                if maale_metode_a == KAPACITIV_TESTPROBE
-                else "Primær Vinkel",
-                cell_hdr,
-            ),
-            Paragraph(
-                "Sekundær vinkel<br/>(rå → korrigeret)"
-                if maale_metode_b == KAPACITIV_TESTPROBE
-                else "Sekundær Vinkel",
-                cell_hdr,
-            ),
+            Paragraph("Primær Vinkel", cell_hdr),
+            Paragraph("Sekundær Vinkel", cell_hdr),
             Paragraph("Målt Forskydning", cell_hdr),
             Paragraph("Status", cell_hdr),
         ],
@@ -375,11 +365,6 @@ def generer_pdf_bytes(
             [
                 PageBreak(),
                 Paragraph("Billeddokumentation", title_style),
-                Paragraph(
-                    f"<b>Station:</b> {escape(station)}<br/>"
-                    f"<b>Transformer ID:</b> {escape(trafo_id)}",
-                    meta_style,
-                ),
                 Spacer(1, 10),
             ]
         )
@@ -472,13 +457,13 @@ with col1:
     st.header("2. Måleresultater (Grader °)")
     c_l1, c_l2 = st.columns(2)
     with c_l1:
-        p1 = st.number_input("L1 Primær", value=None, step=0.1)
-        p2 = st.number_input("L2 Primær", value=None, step=0.1)
-        p3 = st.number_input("L3 Primær", value=None, step=0.1)
+        p1 = st.number_input("L1 Primær Vinkel (°)", value=None, step=0.1)
+        p2 = st.number_input("L2 Primær Vinkel (°)", value=None, step=0.1)
+        p3 = st.number_input("L3 Primær Vinkel (°)", value=None, step=0.1)
     with c_l2:
-        s1 = st.number_input("L1 Sekundær", value=None, step=0.1)
-        s2 = st.number_input("L2 Sekundær", value=None, step=0.1)
-        s3 = st.number_input("L3 Sekundær", value=None, step=0.1)
+        s1 = st.number_input("L1 Sekundær Vinkel (°)", value=None, step=0.1)
+        s2 = st.number_input("L2 Sekundær Vinkel (°)", value=None, step=0.1)
+        s3 = st.number_input("L3 Sekundær Vinkel (°)", value=None, step=0.1)
 
     st.markdown("### Billeder til måleresultater (valgfrit)")
     maale_punkt_billeder = {}
