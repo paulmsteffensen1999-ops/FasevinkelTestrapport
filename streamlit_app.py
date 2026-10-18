@@ -187,32 +187,32 @@ def generer_pdf_bytes(
     title_style = ParagraphStyle(
         "T1",
         parent=styles["Heading1"],
-        fontSize=20,
-        leading=22,
-        textColor=colors.HexColor("#1A365D"),
-        spaceAfter=8,
+        fontSize=16,
+        leading=18,
+        textColor=colors.HexColor("#2C3E50"),
+        spaceAfter=6,
     )
     meta_style = ParagraphStyle(
         "M1",
         parent=styles["Normal"],
-        fontSize=10,
-        leading=13,
-        textColor=colors.HexColor("#4A5568"),
+        fontSize=8,
+        leading=9,
+        textColor=colors.HexColor("#34495E"),
     )
     forklaring_style = ParagraphStyle(
         "MethodExplanation",
-        parent=styles["Normal"],
-        fontSize=8,
-        leading=10,
-        textColor=colors.HexColor("#4A5568"),
+        parent=meta_style,
+        fontSize=7,
+        leading=8,
     )
     cell_style = ParagraphStyle(
-        "C1", parent=styles["Normal"], fontSize=10, alignment=1
+        "C1", parent=styles["Normal"], fontSize=8, leading=9, alignment=1
     )
     cell_hdr = ParagraphStyle(
         "CH",
         parent=styles["Normal"],
-        fontSize=10,
+        fontSize=8,
+        leading=9,
         alignment=1,
         textColor=colors.white,
     )
@@ -226,7 +226,6 @@ def generer_pdf_bytes(
 
     story = [
         Paragraph("FASEVINKEL TESTRAPPORT", title_style),
-        Paragraph("Stamdata og målemetode", styles["Heading2"]),
         Paragraph(
             koblingsgruppe_rapport
             + f"<b>Station:</b> {escape(station)}<br/>"
@@ -238,25 +237,27 @@ def generer_pdf_bytes(
             f"<b>Målemetode for Værdi B:</b> {escape(maale_metode_b)}",
             meta_style,
         ),
-        Spacer(1, 15),
+        Spacer(1, 6),
     ]
     if KAPACITIV_TESTPROBE in (maale_metode_a, maale_metode_b):
         story.extend(
             [
                 Paragraph(
-                    "<b>Forklaring af kapacitiv testprobe (+60°):</b><br/>"
-                    "Testspidsen fungerer som en højspændingskondensator. "
-                    "Sammen med måleinstrumentets indgangsimpedans danner den "
-                    "et kapacitivt kredsløb, som får målesignalet (strømmen) "
-                    "til at ligge elektrisk 60° foran den rå spændingsbølge. "
-                    "Derfor korrigeres den indtastede vinkel med -60° på den "
-                    "side, hvor denne målemetode er valgt.",
+                    "<b>Når målemetoden &#8220;Direkte måling på 10-20kV med "
+                    "isoleret testprope (kapacitiv)&#8221; bruges, skal der "
+                    "forventes en faseafvigelse på +60°:</b><br/>"
+                    "Måleafvigelsen skyldes, at testspidsen fungerer som en "
+                    "højspændingskondensator. I kombination med måleinstrumentets "
+                    "indgangsimpedans dannes et kapacitivt kredsløb, som tvinger "
+                    "målesignalet (strømmen) <b>elektrisk forkant med +60°</b> i "
+                    "forhold til den reelle, rå spændingsbølge. Fasevinklerne "
+                    "korrigeres derfor med −60° på den side, hvor denne "
+                    "målemetode er valgt.",
                     forklaring_style,
                 ),
-                Spacer(1, 8),
+                Spacer(1, 4),
             ]
         )
-    story.append(Paragraph("Måleresultater", styles["Heading2"]))
 
     pri_vinkel_visninger = [
         f"{indtastet}° → {korrigeret}°"
@@ -325,17 +326,25 @@ def generer_pdf_bytes(
     story.extend(
         [
             tabel,
-            Spacer(1, 20),
+            Spacer(1, 6),
             KeepTogether(
                 [
-                    Paragraph("Vektordiagram", styles["Heading2"]),
-                    Image(img_buf, width=190, height=190),
+                    Paragraph(
+                        "Grafisk Sammenligning",
+                        ParagraphStyle(
+                            "DiagramSubheading",
+                            parent=styles["Heading2"],
+                            fontSize=10,
+                            textColor=colors.HexColor("#2980B9"),
+                        ),
+                    ),
+                    Spacer(1, 5),
+                    Image(img_buf, width=220, height=220),
+                    Spacer(1, 6),
                 ]
             ),
-            Spacer(1, 8),
             KeepTogether(
                 [
-                    Paragraph("Udførelse og godkendelse", styles["Heading2"]),
                     Table(
                         [
                             [
@@ -353,7 +362,7 @@ def generer_pdf_bytes(
                                 Paragraph("<b>Signatur:</b> _______________________", meta_style),
                             ],
                         ],
-                        colWidths=[260, 260],
+                        colWidths=[270, 260],
                     ),
                 ]
             ),
